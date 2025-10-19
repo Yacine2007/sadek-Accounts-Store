@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: sadek-accounts-store
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GITHUB_TOKEN
+        value: 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
+      - key: GITHUB_USERNAME
+        value: Yacine2007
+      - key: GITHUB_REPO
+        value: sadek-Accounts-Store
+      - key: GITHUB_BRANCH
+        value: main
+      - key: GITHUB_IMAGE_PATH
+        value: prdct
