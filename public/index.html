@@ -869,15 +869,6 @@
         </div>
     </section>
 
-    <!-- Categories Section -->
-    <section class="categories">
-        <div class="container">
-            <h2 class="section-title">التصنيفات</h2>
-            <div class="categories-grid" id="categories-container">
-                <!-- Categories will be loaded here -->
-            </div>
-        </div>
-    </section>
 
     <!-- Products Section -->
     <section class="container" id="products">
@@ -1022,488 +1013,529 @@
         </div>
     </footer>
 
-    <script>
-        // API Configuration
-        const API_BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000/api' 
-            : 'https://sadek-accounts-store.onrender.com/api';
+<script>
+    // API Configuration
+    const API_BASE_URL = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000/api' 
+        : 'https://sadek-accounts-store.onrender.com/api';
+    
+    // Global variables
+    let storeConfig = {};
+    let currentProducts = [];
+    let currentCategories = [];
+    let selectedProduct = null;
+
+    // DOM Elements
+    const productsContainer = document.getElementById('products-container');
+    const categoriesContainer = document.getElementById('categories-container');
+    const filterButtons = document.getElementById('filterButtons');
+    const orderModal = document.getElementById('orderModal');
+    const notification = document.getElementById('notification');
+    const notificationClose = document.getElementById('notificationClose');
+    const quantityInput = document.getElementById('orderQuantity');
+    const orderForm = document.getElementById('orderForm');
+
+    // Initialize the store
+    async function initStore() {
+        // Set current year
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
         
-        // Global variables
-        let storeConfig = {};
-        let currentProducts = [];
-        let currentCategories = [];
-        let selectedProduct = null;
-
-        // DOM Elements
-        const productsContainer = document.getElementById('products-container');
-        const categoriesContainer = document.getElementById('categories-container');
-        const filterButtons = document.getElementById('filterButtons');
-        const orderModal = document.getElementById('orderModal');
-        const notification = document.getElementById('notification');
-        const notificationClose = document.getElementById('notificationClose');
-        const quantityInput = document.getElementById('orderQuantity');
-        const orderForm = document.getElementById('orderForm');
-
-        // Initialize the store
-        async function initStore() {
-            // Set current year
-            document.getElementById('currentYear').textContent = new Date().getFullYear();
-            
-            // Track visitor
-            await trackVisitor();
-            
-            // Load store settings, categories and products
-            await loadStoreData();
-            
-            // Setup event listeners
-            setupEventListeners();
-        }
-
-        // Show notification
-        function showNotification(title, message, type = 'success') {
-            const notification = document.getElementById('notification');
-            const notificationTitle = document.getElementById('notificationTitle');
-            const notificationMessage = document.getElementById('notificationMessage');
-            const notificationIcon = notification.querySelector('.notification-icon');
-            
-            // Set notification content
-            notificationTitle.textContent = title;
-            notificationMessage.textContent = message;
-            
-            // Set notification type
-            const colors = {
-                success: '#e63946',
-                error: '#dc3545',
-                warning: '#ffc107',
-                info: '#17a2b8'
-            };
-            
-            notificationIcon.style.background = colors[type] || colors.success;
-            notificationIcon.innerHTML = type === 'error' ? '<i class="fas fa-exclamation"></i>' : 
-                                       type === 'warning' ? '<i class="fas fa-exclamation-triangle"></i>' :
-                                       type === 'info' ? '<i class="fas fa-info"></i>' :
-                                       '<i class="fas fa-check"></i>';
-            
-            // Show notification
-            notification.classList.add('show');
-            
-            // Auto hide after 5 seconds
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 5000);
-        }
-
-        // Close notification
-        notificationClose.addEventListener('click', () => {
-            notification.classList.remove('show');
-        });
-
         // Track visitor
-        async function trackVisitor() {
-            try {
-                await fetch(`${API_BASE_URL}/analytics/visitor`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-            } catch (error) {
-                console.error('Error tracking visitor:', error);
-            }
-        }
+        await trackVisitor();
+        
+        // Load store settings, categories and products
+        await loadStoreData();
+        
+        // Setup event listeners
+        setupEventListeners();
+    }
 
-        // Load store data
-        async function loadStoreData() {
-            try {
-                // Load settings
-                const settingsResponse = await fetch(`${API_BASE_URL}/settings`);
-                if (settingsResponse.ok) {
-                    storeConfig = await settingsResponse.json();
-                    applyStoreConfig();
+    // Show notification
+    function showNotification(title, message, type = 'success') {
+        const notification = document.getElementById('notification');
+        const notificationTitle = document.getElementById('notificationTitle');
+        const notificationMessage = document.getElementById('notificationMessage');
+        const notificationIcon = notification.querySelector('.notification-icon');
+        
+        // Set notification content
+        notificationTitle.textContent = title;
+        notificationMessage.textContent = message;
+        
+        // Set notification type
+        const colors = {
+            success: '#e63946',
+            error: '#dc3545',
+            warning: '#ffc107',
+            info: '#17a2b8'
+        };
+        
+        notificationIcon.style.background = colors[type] || colors.success;
+        notificationIcon.innerHTML = type === 'error' ? '<i class="fas fa-exclamation"></i>' : 
+                                   type === 'warning' ? '<i class="fas fa-exclamation-triangle"></i>' :
+                                   type === 'info' ? '<i class="fas fa-info"></i>' :
+                                   '<i class="fas fa-check"></i>';
+        
+        // Show notification
+        notification.classList.add('show');
+        
+        // Auto hide after 5 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 5000);
+    }
+
+    // Close notification
+    notificationClose.addEventListener('click', () => {
+        notification.classList.remove('show');
+    });
+
+    // Track visitor
+    async function trackVisitor() {
+        try {
+            await fetch(`${API_BASE_URL}/analytics/visitor`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 }
-
-                // Load categories
-                const categoriesResponse = await fetch(`${API_BASE_URL}/categories`);
-                if (categoriesResponse.ok) {
-                    currentCategories = await categoriesResponse.json();
-                    renderCategories();
-                    setupCategoryFilters();
-                }
-
-                // Load products
-                const productsResponse = await fetch(`${API_BASE_URL}/products`);
-                if (productsResponse.ok) {
-                    currentProducts = await productsResponse.json();
-                    renderProducts();
-                }
-            } catch (error) {
-                console.error('Error loading store data:', error);
-                showNotification('خطأ', 'فشل في تحميل بيانات المتجر', 'error');
-            }
-        }
-
-        // Apply store configuration to the page
-        function applyStoreConfig() {
-            // Store name and logo
-            document.getElementById('storeName').textContent = storeConfig.storeName || 'متجر صادق لبيع الحسابات';
-            document.getElementById('footerStoreName').textContent = storeConfig.storeName || 'متجر صادق لبيع الحسابات';
-            document.getElementById('copyrightStoreName').textContent = storeConfig.storeName || 'متجر صادق لبيع الحسابات';
-            
-            // Hero section
-            document.getElementById('heroTitle').textContent = storeConfig.heroTitle || 'مرحباً بكم في متجر صادق';
-            document.getElementById('heroDescription').textContent = storeConfig.heroDescription || 'وسيط موثوق لبيع وشراء حسابات فيسبوك، انستجرام، فري فاير وغيرها بنسبة وساطة 15%';
-            
-            // Footer description
-            document.getElementById('footerDescription').textContent = storeConfig.heroDescription || 'وسيط موثوق بين البائع والمشتري لحسابات فيسبوك، انستجرام، فري فاير وغيرها. نضمن الأمان والثقة في كل عملية بيع.';
-            
-            // Logo
-            if (storeConfig.logo) {
-                document.getElementById('storeLogo').src = storeConfig.logo;
-                document.getElementById('footerLogo').src = storeConfig.logo;
-            }
-        }
-
-        // Render categories
-        function renderCategories() {
-            categoriesContainer.innerHTML = '';
-            
-            if (currentCategories.length === 0) {
-                categoriesContainer.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-folder-open"></i>
-                        <h3>لا توجد تصنيفات</h3>
-                        <p>سيتم إضافة التصنيفات قريباً من لوحة التحكم</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            const categoryIcons = {
-                'حسابات فيسبوك': 'fab fa-facebook',
-                'حسابات انستجرام': 'fab fa-instagram',
-                'حسابات فري فاير': 'fas fa-gamepad',
-                'حسابات ألعاب أخرى': 'fas fa-dice'
-            };
-            
-            currentCategories.forEach(category => {
-                const categoryCard = document.createElement('div');
-                categoryCard.className = 'category-card';
-                categoryCard.setAttribute('data-category', category.name);
-                
-                const iconClass = categoryIcons[category.name] || 'fas fa-user';
-                
-                categoryCard.innerHTML = `
-                    <i class="${iconClass}"></i>
-                    <h3>${category.name}</h3>
-                    <p>${category.description || 'تصنيف الحسابات'}</p>
-                `;
-                
-                categoryCard.addEventListener('click', () => {
-                    filterProductsByCategory(category.name);
-                });
-                
-                categoriesContainer.appendChild(categoryCard);
             });
+        } catch (error) {
+            console.error('Error tracking visitor:', error);
         }
+    }
 
-        // Setup category filters
-        function setupCategoryFilters() {
-            // Add category filter buttons
-            currentCategories.forEach(category => {
-                const filterBtn = document.createElement('button');
-                filterBtn.className = 'filter-btn';
-                filterBtn.setAttribute('data-category', category.name);
-                filterBtn.textContent = category.name;
-                filterBtn.addEventListener('click', () => {
-                    filterProductsByCategory(category.name);
-                });
-                filterButtons.appendChild(filterBtn);
-            });
-        }
-
-        // Filter products by category
-        function filterProductsByCategory(categoryName) {
-            // Update active filter button
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            if (categoryName === 'all') {
-                document.querySelector('.filter-btn[data-category="all"]').classList.add('active');
-                renderProducts(currentProducts);
-            } else {
-                document.querySelector(`.filter-btn[data-category="${categoryName}"]`).classList.add('active');
-                const filteredProducts = currentProducts.filter(product => 
-                    product.category === categoryName
-                );
-                renderProducts(filteredProducts);
+    // Load store data
+    async function loadStoreData() {
+        try {
+            // Load settings
+            const settingsResponse = await fetch(`${API_BASE_URL}/settings`);
+            if (settingsResponse.ok) {
+                storeConfig = await settingsResponse.json();
+                applyStoreConfig();
             }
-        }
 
-        // Render products
-        function renderProducts(products = currentProducts) {
-            productsContainer.innerHTML = '';
-            
-            if (products.length === 0) {
-                productsContainer.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-user-slash"></i>
-                        <h3>لا توجد حسابات متاحة</h3>
-                        <p>سيتم إضافة حسابات جديدة قريباً</p>
-                    </div>
-                `;
-                return;
+            // Load categories
+            const categoriesResponse = await fetch(`${API_BASE_URL}/categories`);
+            if (categoriesResponse.ok) {
+                currentCategories = await categoriesResponse.json();
+                setupCategoryFilters();
             }
-            
-            const activeProducts = products.filter(product => product.status === true);
-            
-            if (activeProducts.length === 0) {
-                productsContainer.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-user-slash"></i>
-                        <h3>لا توجد حسابات نشطة</h3>
-                        <p>جميع الحسابات غير متاحة حالياً. يرجى العودة لاحقاً.</p>
-                    </div>
-                `;
-                return;
+
+            // Load products
+            const productsResponse = await fetch(`${API_BASE_URL}/products`);
+            if (productsResponse.ok) {
+                currentProducts = await productsResponse.json();
+                renderProducts();
             }
-            
-            activeProducts.forEach(product => {
-                const productCard = document.createElement('div');
-                productCard.className = 'product-card';
-                
-                const imageUrl = product.images && product.images.length > 0 
-                    ? product.images[0]
-                    : 'https://via.placeholder.com/300x200/121212/666666?text=لا+توجد+صورة';
-                
-                const currencySymbol = product.currency === 'USD' ? '$' : 
-                                    product.currency === 'EUR' ? '€' : 'DA';
-                
-                const priceDisplay = product.price && product.price !== 'PRV' 
-                    ? `${product.price} ${currencySymbol}`
-                    : 'سعر خاص';
-                
-                productCard.innerHTML = `
-                    <img src="${imageUrl}" alt="${product.name}" class="product-image" loading="lazy"
-                         onerror="this.src='https://via.placeholder.com/300x200/121212/666666?text=لا+توجد+صورة'">
-                    <div class="product-info">
-                        <h3 class="product-title">${product.name}</h3>
-                        <p class="product-description">${product.description || 'لا يوجد وصف متاح.'}</p>
-                        <div class="product-meta">
-                            <div class="product-price">${priceDisplay}</div>
-                            <div class="product-category">${product.category || 'عام'}</div>
-                        </div>
-                        <div class="product-actions">
-                            <button class="btn btn-outline view-details" data-id="${product.id}">
-                                <i class="fas fa-eye"></i> التفاصيل
-                            </button>
-                            <button class="btn order-btn" data-id="${product.id}">
-                                <i class="fas fa-shopping-cart"></i> طلب الحساب
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                productsContainer.appendChild(productCard);
-            });
-            
-            // Add event listeners
-            setupProductEventListeners();
+        } catch (error) {
+            console.error('Error loading store data:', error);
+            showNotification('خطأ', 'فشل في تحميل بيانات المتجر', 'error');
         }
+    }
 
-        // Setup product event listeners
-        function setupProductEventListeners() {
-            // Order buttons
-            document.querySelectorAll('.order-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const productId = parseInt(e.target.closest('.order-btn').dataset.id);
-                    openOrderModal(productId);
-                });
-            });
+    // Apply store configuration to the page
+    function applyStoreConfig() {
+        // Store name and logo
+        document.getElementById('storeName').textContent = storeConfig.storeName || 'متجر صادق لبيع الحسابات';
+        document.getElementById('footerStoreName').textContent = storeConfig.storeName || 'متجر صادق لبيع الحسابات';
+        document.getElementById('copyrightStoreName').textContent = storeConfig.storeName || 'متجر صادق لبيع الحسابات';
+        
+        // Hero section
+        document.getElementById('heroTitle').textContent = storeConfig.heroTitle || 'مرحباً بكم في متجر صادق';
+        document.getElementById('heroDescription').textContent = storeConfig.heroDescription || 'وسيط موثوق لبيع وشراء حسابات فيسبوك، انستجرام، فري فاير وغيرها بنسبة وساطة 15%';
+        
+        // Footer description
+        document.getElementById('footerDescription').textContent = storeConfig.heroDescription || 'وسيط موثوق بين البائع والمشتري لحسابات فيسبوك، انستجرام، فري فاير وغيرها. نضمن الأمان والثقة في كل عملية بيع.';
+        
+        // Logo
+        if (storeConfig.logo) {
+            document.getElementById('storeLogo').src = storeConfig.logo;
+            document.getElementById('footerLogo').src = storeConfig.logo;
         }
+    }
 
-        // Open order modal
-        function openOrderModal(productId) {
-            selectedProduct = currentProducts.find(p => p.id === productId);
+    // Setup category filters
+    function setupCategoryFilters() {
+        // Add category filter buttons
+        currentCategories.forEach(category => {
+            const filterBtn = document.createElement('button');
+            filterBtn.className = 'filter-btn';
+            filterBtn.setAttribute('data-category', category.name);
+            filterBtn.textContent = category.name;
+            filterBtn.addEventListener('click', () => {
+                filterProductsByCategory(category.name);
+            });
+            filterButtons.appendChild(filterBtn);
+        });
+    }
+
+    // Filter products by category
+    function filterProductsByCategory(categoryName) {
+        // Update active filter button
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        if (categoryName === 'all') {
+            document.querySelector('.filter-btn[data-category="all"]').classList.add('active');
+            renderProducts(currentProducts);
+        } else {
+            document.querySelector(`.filter-btn[data-category="${categoryName}"]`).classList.add('active');
+            const filteredProducts = currentProducts.filter(product => 
+                product.category === categoryName
+            );
+            renderProducts(filteredProducts);
+        }
+    }
+
+    // Render products
+    function renderProducts(products = currentProducts) {
+        productsContainer.innerHTML = '';
+        
+        if (products.length === 0) {
+            productsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-user-slash"></i>
+                    <h3>لا توجد حسابات متاحة</h3>
+                    <p>سيتم إضافة حسابات جديدة قريباً</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const activeProducts = products.filter(product => product.status === true);
+        
+        if (activeProducts.length === 0) {
+            productsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-user-slash"></i>
+                    <h3>لا توجد حسابات نشطة</h3>
+                    <p>جميع الحسابات غير متاحة حالياً. يرجى العودة لاحقاً.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        activeProducts.forEach(product => {
+            const productCard = document.createElement('div');
+            productCard.className = 'product-card';
             
-            if (!selectedProduct) return;
+            const imageUrl = product.images && product.images.length > 0 
+                ? product.images[0]
+                : 'https://via.placeholder.com/300x200/121212/666666?text=لا+توجد+صورة';
             
-            document.getElementById('orderProductName').textContent = selectedProduct.name;
-            document.getElementById('orderProductId').value = selectedProduct.id;
+            const currencySymbol = product.currency === 'USD' ? '$' : 
+                                product.currency === 'EUR' ? '€' : 'DA';
             
-            const currencySymbol = selectedProduct.currency === 'USD' ? '$' : 
-                                selectedProduct.currency === 'EUR' ? '€' : 'DA';
-            
-            const unitPrice = selectedProduct.price && selectedProduct.price !== 'PRV' 
-                ? `${selectedProduct.price} ${currencySymbol}`
+            const priceDisplay = product.price && product.price !== 'PRV' 
+                ? `${product.price} ${currencySymbol}`
                 : 'سعر خاص';
             
-            document.getElementById('unitPrice').textContent = unitPrice;
+            productCard.innerHTML = `
+                <img src="${imageUrl}" alt="${product.name}" class="product-image" loading="lazy"
+                     onerror="this.src='https://via.placeholder.com/300x200/121212/666666?text=لا+توجد+صورة'">
+                <div class="product-info">
+                    <h3 class="product-title">${product.name}</h3>
+                    <p class="product-description">${product.description || 'لا يوجد وصف متاح.'}</p>
+                    <div class="product-meta">
+                        <div class="product-price">${priceDisplay}</div>
+                        <div class="product-category">${product.category || 'عام'}</div>
+                    </div>
+                    <div class="product-actions">
+                        <button class="btn btn-outline view-details" data-id="${product.id}">
+                            <i class="fas fa-eye"></i> التفاصيل
+                        </button>
+                        <button class="btn order-btn" data-id="${product.id}">
+                            <i class="fas fa-shopping-cart"></i> طلب الحساب
+                        </button>
+                    </div>
+                </div>
+            `;
             
-            // Reset form
-            orderForm.reset();
-            quantityInput.value = 1;
-            
-            // Setup product gallery
-            setupProductGallery();
-            
-            updateOrderSummary();
-            
-            orderModal.style.display = 'flex';
-        }
+            productsContainer.appendChild(productCard);
+        });
+        
+        // Add event listeners
+        setupProductEventListeners();
+    }
 
-        // Setup product gallery in order modal
-        function setupProductGallery() {
-            const galleryContainer = document.getElementById('orderProductGallery');
-            const images = selectedProduct.images && selectedProduct.images.length > 0 
-                ? selectedProduct.images 
-                : ['https://via.placeholder.com/500x400/121212/666666?text=لا+توجد+صورة'];
+    // Setup product event listeners
+    function setupProductEventListeners() {
+        // View details buttons - FIXED: تعمل الآن
+        document.querySelectorAll('.view-details').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = parseInt(e.target.closest('.view-details').dataset.id);
+                viewProductDetails(productId);
+            });
+        });
+        
+        // Order buttons
+        document.querySelectorAll('.order-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const productId = parseInt(e.target.closest('.order-btn').dataset.id);
+                openOrderModal(productId);
+            });
+        });
+    }
+
+    // View product details - FIXED: تعمل الآن
+    async function viewProductDetails(productId) {
+        try {
+            const product = await fetch(`${API_BASE_URL}/products/${productId}`).then(res => res.json());
             
+            if (!product) return;
+            
+            const images = product.images && product.images.length > 0 ? product.images : ['https://via.placeholder.com/500x400/121212/666666?text=لا+توجد+صورة'];
             const mainImage = images[0];
             
-            galleryContainer.innerHTML = `
-                <img src="${mainImage}" alt="${selectedProduct.name}" class="product-main-image" id="orderMainImage">
-                ${images.length > 1 ? `
-                <div class="product-thumbnails">
-                    ${images.map((img, index) => `
-                        <img src="${img}" alt="صورة ${index + 1}" class="product-thumbnail ${index === 0 ? 'active' : ''}" 
-                             onclick="changeOrderProductImage('${img}', this)">
-                    `).join('')}
+            document.getElementById('productModalTitle').textContent = product.name;
+            
+            const detailsContent = `
+                <div class="product-gallery">
+                    <img src="${mainImage}" alt="${product.name}" class="product-main-image" id="mainProductImage">
+                    ${images.length > 1 ? `
+                    <div class="product-thumbnails">
+                        ${images.map((img, index) => `
+                            <img src="${img}" alt="صورة ${index + 1}" class="product-thumbnail ${index === 0 ? 'active' : ''}" 
+                                 onclick="changeProductImage('${img}', this)">
+                        `).join('')}
+                    </div>
+                    ` : ''}
                 </div>
-                ` : ''}
+                <div class="product-info-details">
+                    <h3>${product.name}</h3>
+                    <div class="product-meta">
+                        <span><i class="fas fa-tag"></i> ${product.category || 'غير مصنف'}</span>
+                        <span class="delivery-badge delivery-available">
+                            ${product.status ? 'نشط' : 'غير نشط'}
+                        </span>
+                    </div>
+                    <p>${product.description || 'لا يوجد وصف متاح.'}</p>
+                    <div class="product-price" style="font-size: 2rem;">
+                        ${product.price && product.price !== 'PRV' ? `${product.price} ${product.currency || 'DA'}` : 'سعر خاص'}
+                    </div>
+                    <button class="btn" onclick="openOrderModal(${product.id})" style="width: 100%; margin-top: 15px;">
+                        <i class="fas fa-shopping-cart"></i> طلب الحساب
+                    </button>
+                </div>
             `;
+            
+            document.getElementById('productDetailsContent').innerHTML = detailsContent;
+            document.getElementById('productModal').style.display = 'flex';
+        } catch (error) {
+            console.error('Error loading product details:', error);
+            showNotification('خطأ', 'فشل في تحميل تفاصيل المنتج', 'error');
         }
+    }
 
-        // Change product image in order modal
-        function changeOrderProductImage(imageUrl, element) {
-            document.getElementById('orderMainImage').src = imageUrl;
-            document.querySelectorAll('#orderProductGallery .product-thumbnail').forEach(thumb => {
-                thumb.classList.remove('active');
+    // Change product image in details view
+    function changeProductImage(imageUrl, element) {
+        document.getElementById('mainProductImage').src = imageUrl;
+        document.querySelectorAll('.product-thumbnail').forEach(thumb => {
+            thumb.classList.remove('active');
+        });
+        element.classList.add('active');
+    }
+
+    // Open order modal
+    function openOrderModal(productId) {
+        selectedProduct = currentProducts.find(p => p.id === productId);
+        
+        if (!selectedProduct) return;
+        
+        document.getElementById('orderProductName').textContent = selectedProduct.name;
+        document.getElementById('orderProductId').value = selectedProduct.id;
+        
+        const currencySymbol = selectedProduct.currency === 'USD' ? '$' : 
+                            selectedProduct.currency === 'EUR' ? '€' : 'DA';
+        
+        const unitPrice = selectedProduct.price && selectedProduct.price !== 'PRV' 
+            ? `${selectedProduct.price} ${currencySymbol}`
+            : 'سعر خاص';
+        
+        document.getElementById('unitPrice').textContent = unitPrice;
+        
+        // Reset form
+        orderForm.reset();
+        quantityInput.value = 1;
+        
+        // Setup product gallery
+        setupProductGallery();
+        
+        updateOrderSummary();
+        
+        orderModal.style.display = 'flex';
+    }
+
+    // Setup product gallery in order modal
+    function setupProductGallery() {
+        const galleryContainer = document.getElementById('orderProductGallery');
+        const images = selectedProduct.images && selectedProduct.images.length > 0 
+            ? selectedProduct.images 
+            : ['https://via.placeholder.com/500x400/121212/666666?text=لا+توجد+صورة'];
+        
+        const mainImage = images[0];
+        
+        galleryContainer.innerHTML = `
+            <img src="${mainImage}" alt="${selectedProduct.name}" class="product-main-image" id="orderMainImage">
+            ${images.length > 1 ? `
+            <div class="product-thumbnails">
+                ${images.map((img, index) => `
+                    <img src="${img}" alt="صورة ${index + 1}" class="product-thumbnail ${index === 0 ? 'active' : ''}" 
+                         onclick="changeOrderProductImage('${img}', this)">
+                `).join('')}
+            </div>
+            ` : ''}
+        `;
+    }
+
+    // Change product image in order modal
+    function changeOrderProductImage(imageUrl, element) {
+        document.getElementById('orderMainImage').src = imageUrl;
+        document.querySelectorAll('#orderProductGallery .product-thumbnail').forEach(thumb => {
+            thumb.classList.remove('active');
+        });
+        element.classList.add('active');
+    }
+
+    // Update order summary
+    function updateOrderSummary() {
+        const quantity = parseInt(quantityInput.value);
+        const unitPrice = selectedProduct.price && selectedProduct.price !== 'PRV' ? parseFloat(selectedProduct.price) : 0;
+        const total = unitPrice * quantity;
+        
+        const currencySymbol = selectedProduct.currency === 'USD' ? '$' : 
+                            selectedProduct.currency === 'EUR' ? '€' : 'DA';
+        
+        document.getElementById('summaryQuantity').textContent = quantity;
+        
+        if (selectedProduct.price && selectedProduct.price !== 'PRV') {
+            document.getElementById('totalPrice').textContent = `${total} ${currencySymbol}`;
+        } else {
+            document.getElementById('totalPrice').textContent = 'سعر خاص';
+        }
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        // Modal close events
+        document.querySelectorAll('.close-modal').forEach(closeBtn => {
+            closeBtn.addEventListener('click', () => {
+                document.getElementById('productModal').style.display = 'none';
+                orderModal.style.display = 'none';
             });
-            element.classList.add('active');
-        }
-
-        // Update order summary
-        function updateOrderSummary() {
-            const quantity = parseInt(quantityInput.value);
-            const unitPrice = selectedProduct.price && selectedProduct.price !== 'PRV' ? parseFloat(selectedProduct.price) : 0;
-            const total = unitPrice * quantity;
-            
-            const currencySymbol = selectedProduct.currency === 'USD' ? '$' : 
-                                selectedProduct.currency === 'EUR' ? '€' : 'DA';
-            
-            document.getElementById('summaryQuantity').textContent = quantity;
-            
-            if (selectedProduct.price && selectedProduct.price !== 'PRV') {
-                document.getElementById('totalPrice').textContent = `${total} ${currencySymbol}`;
-            } else {
-                document.getElementById('totalPrice').textContent = 'سعر خاص';
+        });
+        
+        window.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('productModal')) {
+                document.getElementById('productModal').style.display = 'none';
             }
-        }
-
-        // Setup event listeners
-        function setupEventListeners() {
-            // Modal close events
-            document.querySelectorAll('.close-modal').forEach(closeBtn => {
-                closeBtn.addEventListener('click', () => {
-                    orderModal.style.display = 'none';
-                });
-            });
-            
-            window.addEventListener('click', (e) => {
-                if (e.target === orderModal) {
-                    orderModal.style.display = 'none';
-                }
-            });
-            
-            // Quantity buttons
-            document.getElementById('decreaseQty').addEventListener('click', () => {
-                const currentQty = parseInt(quantityInput.value);
-                if (currentQty > 1) {
-                    quantityInput.value = currentQty - 1;
-                    updateOrderSummary();
-                }
-            });
-            
-            document.getElementById('increaseQty').addEventListener('click', () => {
-                const currentQty = parseInt(quantityInput.value);
-                quantityInput.value = currentQty + 1;
+            if (e.target === orderModal) {
+                orderModal.style.display = 'none';
+            }
+        });
+        
+        // Quantity buttons
+        document.getElementById('decreaseQty').addEventListener('click', () => {
+            const currentQty = parseInt(quantityInput.value);
+            if (currentQty > 1) {
+                quantityInput.value = currentQty - 1;
                 updateOrderSummary();
-            });
-            
-            // Quantity input change
-            quantityInput.addEventListener('change', () => {
-                if (quantityInput.value < 1) quantityInput.value = 1;
-                updateOrderSummary();
-            });
-            
-            // Order form submission
-            orderForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await submitOrder();
-            });
-            
-            // All categories filter
-            document.querySelector('.filter-btn[data-category="all"]').addEventListener('click', () => {
-                filterProductsByCategory('all');
-            });
-        }
+            }
+        });
+        
+        document.getElementById('increaseQty').addEventListener('click', () => {
+            const currentQty = parseInt(quantityInput.value);
+            quantityInput.value = currentQty + 1;
+            updateOrderSummary();
+        });
+        
+        // Quantity input change
+        quantityInput.addEventListener('change', () => {
+            if (quantityInput.value < 1) quantityInput.value = 1;
+            updateOrderSummary();
+        });
+        
+        // Order form submission - FIXED: لا يفتح واتساب
+        orderForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitOrder();
+        });
+        
+        // All categories filter
+        document.querySelector('.filter-btn[data-category="all"]').addEventListener('click', () => {
+            filterProductsByCategory('all');
+        });
+    }
 
-        // Submit order
-        async function submitOrder() {
-            const quantity = parseInt(quantityInput.value);
-            const total = selectedProduct.price && selectedProduct.price !== 'PRV' 
-                ? (parseFloat(selectedProduct.price) * quantity)
-                : 0;
-            
-            const orderData = {
-                items: [{
-                    productId: selectedProduct.id,
-                    productName: selectedProduct.name,
-                    price: selectedProduct.price,
-                    quantity: quantity,
-                    unitPrice: selectedProduct.price,
-                    total: total
-                }],
-                customerName: document.getElementById('customerName').value,
-                phone: document.getElementById('customerPhone').value,
-                description: document.getElementById('orderNotes').value,
+    // Submit order - FIXED: لا يفتح واتساب، يبقى في الموقع
+    async function submitOrder() {
+        const quantity = parseInt(quantityInput.value);
+        const total = selectedProduct.price && selectedProduct.price !== 'PRV' 
+            ? (parseFloat(selectedProduct.price) * quantity)
+            : 0;
+        
+        const orderData = {
+            items: [{
+                productId: selectedProduct.id,
+                productName: selectedProduct.name,
+                price: selectedProduct.price,
+                quantity: quantity,
+                unitPrice: selectedProduct.price,
                 total: total
-            };
+            }],
+            customerName: document.getElementById('customerName').value,
+            phone: document.getElementById('customerPhone').value,
+            description: document.getElementById('orderNotes').value,
+            total: total
+        };
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/orders`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(orderData)
+            });
             
-            try {
-                const response = await fetch(`${API_BASE_URL}/orders`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(orderData)
-                });
+            const result = await response.json();
+            
+            if (result.success) {
+                showNotification('تم الطلب!', result.message || 'تم تقديم طلبك بنجاح! سنتواصل معك قريباً.', 'success');
+                orderModal.style.display = 'none';
+                orderForm.reset();
                 
-                const result = await response.json();
+                // إضافة زر فيسبوك بعد الطلب الناجح
+                const facebookBtn = document.createElement('a');
+                facebookBtn.href = 'https://www.facebook.com/sadekbelkhir2007';
+                facebookBtn.target = '_blank';
+                facebookBtn.className = 'btn btn-facebook';
+                facebookBtn.style.marginTop = '10px';
+                facebookBtn.style.width = '100%';
+                facebookBtn.innerHTML = '<i class="fab fa-facebook"></i> تواصل معنا على فيسبوك';
                 
-                if (result.success) {
-                    showNotification('تم الطلب!', `تم تقديم طلبك بنجاح! رقم الطلب: ${result.orderId}`);
-                    orderModal.style.display = 'none';
-                    orderForm.reset();
-                    
-                    // Redirect to WhatsApp for communication
-                    const phoneNumber = '213795367580';
-                    const message = `مرحباً، لدي استفسار عن طلب الحساب: ${selectedProduct.name} (رقم الطلب: ${result.orderId})`;
-                    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-                    window.open(whatsappUrl, '_blank');
-                    
-                } else {
-                    showNotification('خطأ', 'فشل في تقديم الطلب. يرجى المحاولة مرة أخرى.', 'error');
-                }
-            } catch (error) {
-                console.error('Error submitting order:', error);
+                // إضافة الزر مؤقتاً للإشعار
+                setTimeout(() => {
+                    showNotification('تواصل معنا', 'يمكنك التواصل معنا على فيسبوك للمزيد من المعلومات', 'info');
+                }, 2000);
+                
+            } else {
                 showNotification('خطأ', 'فشل في تقديم الطلب. يرجى المحاولة مرة أخرى.', 'error');
             }
+        } catch (error) {
+            console.error('Error submitting order:', error);
+            showNotification('خطأ', 'فشل في تقديم الطلب. يرجى المحاولة مرة أخرى.', 'error');
         }
+    }
 
-        // Initialize the store when page loads
-        document.addEventListener('DOMContentLoaded', initStore);
-    </script>
+    // Initialize the store when page loads
+    document.addEventListener('DOMContentLoaded', initStore);
+
+    // Make functions globally available
+    window.viewProductDetails = viewProductDetails;
+    window.changeProductImage = changeProductImage;
+    window.openOrderModal = openOrderModal;
+    window.changeOrderProductImage = changeOrderProductImage;
+</script>
 </body>
 </html>
