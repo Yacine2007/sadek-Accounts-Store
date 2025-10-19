@@ -82,6 +82,51 @@ const initializeDataFile = async () => {
     
     const hashedPassword = await bcrypt.hash('sadek123', 10);
     
+    // Define initialData directly here
+    const initialData = {
+      settings: {
+        storeName: "متجر صادق لبيع الحسابات",
+        heroTitle: "مرحباً بكم في متجر صادق",
+        heroDescription: "وسيط موثوق لبيع وشراء حسابات فيسبوك، انستجرام، فري فاير وغيرها بنسبة وساطة 15%",
+        currency: "DA",
+        language: "ar",
+        storeStatus: true,
+        contact: {
+          phone: "0795367580",
+          whatsapp: "213795367580",
+          email: "sadek.store@email.com",
+          address: "وسيط إلكتروني",
+          workingHours: "24/7",
+          workingDays: "كل أيام الأسبوع"
+        },
+        social: {
+          facebook: "https://www.facebook.com/sadekbelkhir2007",
+          telegram: "https://t.me/sadekdzz"
+        },
+        logo: "https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true",
+        storeUrl: "https://yacine2007.github.io/sadek-Accounts-Store/index.html"
+      },
+      user: {
+        name: "Sadek Blkhiri",
+        role: "وسيط متجر الحسابات",
+        avatar: "https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true",
+        password: hashedPassword,
+        lastPasswordChange: new Date().toISOString()
+      },
+      categories: [
+        { id: 1, name: "حسابات فيسبوك", description: "حسابات فيسبوك متنوعة" },
+        { id: 2, name: "حسابات انستجرام", description: "حسابات انستجرام متنوعة" },
+        { id: 3, name: "حسابات فري فاير", description: "حسابات لعبة فري فاير" },
+        { id: 4, name: "حسابات ألعاب أخرى", description: "حسابات لألعاب مختلفة" }
+      ],
+      products: [],
+      orders: [],
+      analytics: {
+        visitors: 0,
+        ordersCount: 0,
+        revenue: 0
+      }
+    };
     
     await fs.writeFile(DATA_FILE, JSON.stringify(initialData, null, 2));
     console.log('✅ Initial data file created successfully');
@@ -856,32 +901,7 @@ app.post('/api/reset-data', authenticateToken, async (req, res) => {
         { id: 3, name: "حسابات فري فاير", description: "حسابات لعبة فري فاير" },
         { id: 4, name: "حسابات ألعاب أخرى", description: "حسابات لألعاب مختلفة" }
       ],
-      products: [
-        {
-          id: 1,
-          name: "حساب فيسبوك مميز",
-          description: "حساب فيسبوك قديم مع أصدقاء كثر ومحتوى غني",
-          price: "15000",
-          currency: "DA",
-          category: "حسابات فيسبوك",
-          status: true,
-          images: ["https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          name: "حساب انستجرام نشط",
-          description: "حساب انستجرام بمتابعين حقيقيين ونشاط يومي",
-          price: "20000",
-          currency: "DA",
-          category: "حسابات انستجرام",
-          status: true,
-          images: ["https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true"],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ],
+      products: [],
       orders: [],
       analytics: {
         visitors: 0,
