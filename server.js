@@ -80,7 +80,7 @@ const initializeDataFile = async () => {
   } catch (error) {
     console.log('🔄 Creating initial data file...');
     
-    const hashedPassword = await bcrypt.hash('sadek123', 10);
+    const hashedPassword = await bcrypt.hash('sadek2007sadek', 10);
     
     // Define initialData directly here
     const initialData = {
@@ -958,7 +958,7 @@ const startServer = async () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🏪 Store: http://localhost:${PORT}`);
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
-      console.log(`🔑 Default password: sadek123`);
+      console.log(`🔑 Default password: sadek2007sadek`);
       console.log(`✅ Server optimized for Render deployment`);
       console.log(`🛠️ Fixed issues: Order details, Product details, WhatsApp redirection`);
     });
