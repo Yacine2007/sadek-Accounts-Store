@@ -21,7 +21,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
 
-// نظام رفع الملفات المتوافق مع GitHub
+// نظام رفع الملفات المتوافق مع Render
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
@@ -117,7 +117,32 @@ const initializeDataFile = async () => {
         { id: 3, name: "حسابات فري فاير", description: "حسابات لعبة فري فاير" },
         { id: 4, name: "حسابات ألعاب أخرى", description: "حسابات لألعاب مختلفة" }
       ],
-      products: [],
+      products: [
+        {
+          id: 1,
+          name: "حساب فيسبوك مميز",
+          description: "حساب فيسبوك قديم مع أصدقاء كثر ومحتوى غني",
+          price: "15000",
+          currency: "DA",
+          category: "حسابات فيسبوك",
+          status: true,
+          images: ["https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true"],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          name: "حساب انستجرام نشط",
+          description: "حساب انستجرام بمتابعين حقيقيين ونشاط يومي",
+          price: "20000",
+          currency: "DA",
+          category: "حسابات انستجرام",
+          status: true,
+          images: ["https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true"],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ],
       orders: [],
       analytics: {
         visitors: 0,
@@ -198,9 +223,14 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// رفع الصور إلى GitHub
+// Serve uploads
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+
+// رفع الصور - إصدار متوافق مع Render
 app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {
+    console.log('📤 Upload request received');
+    
     if (!req.file) {
       return res.status(400).json({ 
         success: false,
@@ -208,8 +238,7 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
       });
     }
 
-    // في الإصدار الحقيقي، هنا سيتم رفع الصورة إلى GitHub
-    // لكن حالياً سنستخدم نظام تخزين محلي للاختبار
+    // حفظ الصورة محلياً للاختبار
     const uploadsDir = path.join(__dirname, 'public', 'uploads');
     try {
       await fs.access(uploadsDir);
@@ -224,6 +253,8 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
     
     const imageUrl = `/uploads/${fileName}`;
     
+    console.log('✅ Image uploaded successfully:', imageUrl);
+    
     res.json({ 
       success: true, 
       imageUrl: imageUrl,
@@ -235,6 +266,37 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
     res.status(500).json({ 
       success: false,
       error: 'Failed to upload image: ' + error.message 
+    });
+  }
+});
+
+// Debug endpoint
+app.get('/api/debug', async (req, res) => {
+  try {
+    const data = await readData();
+    
+    if (data) {
+      res.json({
+        success: true,
+        hasData: true,
+        userExists: !!data.user,
+        settings: data.settings,
+        productsCount: data.products ? data.products.length : 0,
+        ordersCount: data.orders ? data.orders.length : 0,
+        categoriesCount: data.categories ? data.categories.length : 0,
+        filePath: DATA_FILE,
+        environment: process.env.NODE_ENV || 'development'
+      });
+    } else {
+      res.json({ 
+        success: false,
+        hasData: false 
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
     });
   }
 });
@@ -451,6 +513,45 @@ app.post('/api/categories', authenticateToken, async (req, res) => {
   }
 });
 
+// Update category
+app.put('/api/categories', authenticateToken, async (req, res) => {
+  try {
+    const categoryData = req.body;
+    const data = await readData();
+
+    if (!data) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+
+    if (!data.categories) {
+      data.categories = [];
+    }
+
+    const categoryIndex = data.categories.findIndex(c => c.id === categoryData.id);
+    if (categoryIndex === -1) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    data.categories[categoryIndex] = {
+      ...data.categories[categoryIndex],
+      name: categoryData.name,
+      description: categoryData.description || '',
+      updatedAt: new Date().toISOString()
+    };
+
+    const success = await writeData(data);
+
+    if (success) {
+      res.json({ success: true, category: data.categories[categoryIndex] });
+    } else {
+      res.status(500).json({ error: 'Failed to update category' });
+    }
+  } catch (error) {
+    console.error('❌ Update category error:', error.message);
+    res.status(500).json({ error: 'Server error: ' + error.message });
+  }
+});
+
 // Get products
 app.get('/api/products', async (req, res) => {
   try {
@@ -462,6 +563,28 @@ app.get('/api/products', async (req, res) => {
     }
   } catch (error) {
     console.error('❌ Products error:', error.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get single product - FIXED: بدون مصادقة للعمل في المتجر
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const data = await readData();
+
+    if (!data || !data.products) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+
+    const product = data.products.find(p => p.id === productId);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error('❌ Get product error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -592,7 +715,29 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
   }
 });
 
-// Create order
+// Get single order - FIXED: يعمل الآن بشكل صحيح
+app.get('/api/orders/:id', authenticateToken, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const data = await readData();
+
+    if (!data || !data.orders) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+
+    const order = data.orders.find(o => o.id === orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    res.json(order);
+  } catch (error) {
+    console.error('❌ Get order error:', error.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create order - FIXED: لا يفتح واتساب مباشرة
 app.post('/api/orders', async (req, res) => {
   try {
     const orderData = req.body;
@@ -629,7 +774,11 @@ app.post('/api/orders', async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      res.json({ success: true, orderId: newOrder.id });
+      res.json({ 
+        success: true, 
+        orderId: newOrder.id,
+        message: 'تم استلام طلبك بنجاح! سنتواصل معك قريباً عبر الواتساب أو الهاتف.'
+      });
     } else {
       res.status(500).json({ error: 'Failed to create order' });
     }
@@ -692,6 +841,21 @@ app.post('/api/analytics/visitor', async (req, res) => {
   }
 });
 
+// Get analytics
+app.get('/api/analytics', authenticateToken, async (req, res) => {
+  try {
+    const data = await readData();
+    if (data && data.analytics) {
+      res.json(data.analytics);
+    } else {
+      res.status(500).json({ error: 'Failed to load analytics' });
+    }
+  } catch (error) {
+    console.error('❌ Analytics error:', error.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get dashboard stats
 app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   try {
@@ -711,6 +875,107 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('❌ Dashboard stats error:', error.message);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Reset data endpoint
+app.post('/api/reset-data', authenticateToken, async (req, res) => {
+  try {
+    console.log('🔄 Starting data reset...');
+    
+    const currentData = await readData();
+    const productsCount = currentData?.products?.length || 0;
+    const ordersCount = currentData?.orders?.length || 0;
+    
+    const hashedPassword = await bcrypt.hash('sadek123', 10);
+    const resetData = {
+      settings: {
+        storeName: "متجر صادق لبيع الحسابات",
+        heroTitle: "مرحباً بكم في متجر صادق",
+        heroDescription: "وسيط موثوق لبيع وشراء حسابات فيسبوك، انستجرام، فري فاير وغيرها بنسبة وساطة 15%",
+        currency: "DA",
+        language: "ar",
+        storeStatus: true,
+        contact: {
+          phone: "0795367580",
+          whatsapp: "213795367580",
+          email: "sadek.store@email.com",
+          address: "وسيط إلكتروني",
+          workingHours: "24/7",
+          workingDays: "كل أيام الأسبوع"
+        },
+        social: {
+          facebook: "https://www.facebook.com/sadekbelkhir2007",
+          telegram: "https://t.me/sadekdzz"
+        },
+        logo: "https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true",
+        storeUrl: "https://yacine2007.github.io/sadek-Accounts-Store/index.html"
+      },
+      user: {
+        name: "Sadek Blkhiri",
+        role: "وسيط متجر الحسابات",
+        avatar: "https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true",
+        password: hashedPassword,
+        lastPasswordChange: new Date().toISOString()
+      },
+      categories: [
+        { id: 1, name: "حسابات فيسبوك", description: "حسابات فيسبوك متنوعة" },
+        { id: 2, name: "حسابات انستجرام", description: "حسابات انستجرام متنوعة" },
+        { id: 3, name: "حسابات فري فاير", description: "حسابات لعبة فري فاير" },
+        { id: 4, name: "حسابات ألعاب أخرى", description: "حسابات لألعاب مختلفة" }
+      ],
+      products: [
+        {
+          id: 1,
+          name: "حساب فيسبوك مميز",
+          description: "حساب فيسبوك قديم مع أصدقاء كثر ومحتوى غني",
+          price: "15000",
+          currency: "DA",
+          category: "حسابات فيسبوك",
+          status: true,
+          images: ["https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true"],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          name: "حساب انستجرام نشط",
+          description: "حساب انستجرام بمتابعين حقيقيين ونشاط يومي",
+          price: "20000",
+          currency: "DA",
+          category: "حسابات انستجرام",
+          status: true,
+          images: ["https://github.com/Yacine2007/sadek-Accounts-Store/blob/main/logo.jpg?raw=true"],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ],
+      orders: [],
+      analytics: {
+        visitors: 0,
+        ordersCount: 0,
+        revenue: 0
+      }
+    };
+
+    await fs.writeFile(DATA_FILE, JSON.stringify(resetData, null, 2));
+    
+    console.log('✅ Data reset completed');
+    
+    res.json({ 
+      success: true, 
+      message: 'Store data has been completely reset',
+      resetSummary: {
+        productsDeleted: productsCount,
+        ordersDeleted: ordersCount,
+        analyticsReset: true,
+        settingsReset: true
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Reset data error:', error.message);
+    res.status(500).json({ error: 'Failed to reset store data' });
   }
 });
 
@@ -743,6 +1008,7 @@ const startServer = async () => {
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
       console.log(`🔑 Default password: sadek123`);
       console.log(`✅ Server optimized for Render deployment`);
+      console.log(`🛠️ Fixed issues: Order details, Product details, WhatsApp redirection`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
